@@ -75,17 +75,27 @@ def start_master():
     
     # Iniciar Worker Local
     print("[*] Iniciando scanner local...")
-    cmd = [sys.executable, "project/scanner/worker.py", "--redis", "localhost", "--master", "localhost"]
+    cmd = [sys.executable, "project/scanner/worker.py", "--master", "localhost"]
     subprocess.run(cmd)
 
 def start_worker():
     clear()
     print(f"{C}=== MODO WORKER ==={W}")
+    
     master_ip = input("IP do Servidor Master: ")
     key = input("Chave de API (Enter para padrão): ") or "MC-SCAN-2026"
-    cmd = f"echo '{master_ip}\n{master_ip}\n{key}' | {sys.executable} project/scanner/worker.py"
-    os.system(cmd)
-
+    
+    print("[*] Iniciando worker...")
+    
+    cmd = [
+        sys.executable,
+        "project/scanner/worker.py",
+        "--master", master_ip,
+        "--key", key
+    ]
+    
+    subprocess.run(cmd)
+    
 def main():
     clear()
     print(f"{G}MC-SCAN DISTRIBUÍDO v5.3{W}")

@@ -32,75 +32,91 @@ async def check_server(ip, port):
         try: sock.close()
         except: pass
 
-async def fetch_tasks(r, session):
+async def fetch_tasks(session):
     headers = {"X-API-Key": CONFIG["api_key"]}
+    queue = asyncio.Queue(maxsize=5000)
     print(f"[*] Worker {CONFIG['worker_id']} pronto. Escaneando...")
     
-    # Sistema de Check-in (Heartbeat)
+    # Processador de resultados e limpeza de MOTD
+    def clean_motd(m):
+        return "".join(c for c in m if c.isprintable()).replace("§", "")
+
+    async def scan_worker():
+        while True:
+            item = await queue.get()
+            if item is None: break
+            res = await check_server(item[0], item[1])
+            if res:
+                res["motd"] = clean_motd(res["motd"])
+                try:
+                    async with session.post(CONFIG["api_url"], json=res, headers=headers, timeout=5) as resp:
+                        await resp.release()
+                except: pass
+            queue.task_done()
+
+    # Cria os workers uma única vez (Pool)
+    worker_count = 250
+    workers = [asyncio.create_task(scan_worker()) for _ in range(worker_count)]
+    
+    # Sistema de Heartbeat
     async def heartbeat():
         url = CONFIG["api_url"].replace("/report", "/register")
-        print(f"[*] Heartbeat iniciado para: {url}")
         while True:
             try:
                 async with session.post(url, json={"worker_id": CONFIG["worker_id"]}, headers=headers, timeout=10) as resp:
-                    if resp.status != 200:
-                        print(f"[!] Erro no Heartbeat: Status {resp.status}")
                     await resp.release()
-            except Exception as e:
-                print(f"[!] Erro de conexão no Heartbeat: {e}")
+            except: pass
             await asyncio.sleep(20)
 
     asyncio.create_task(heartbeat())
     
-    loop = asyncio.get_running_loop()
+    task_url = CONFIG["api_url"].replace("/report", "/get_task")
+    
     while True:
-        # Executa brpop em thread para não travar o loop
         try:
-            task = await loop.run_in_executor(None, r.brpop, "mc_scan_tasks", 5)
-        except:
-            await asyncio.sleep(5)
-            continue
-
-        if not task: continue
-        
-        cidr = task[1]
-        queue = asyncio.Queue(maxsize=1000)
-        
-        async def scan_worker():
-            while True:
-                item = await queue.get()
-                if item is None: break
-                res = await check_server(item[0], item[1])
-                if res:
-                    try:
-                        async with session.post(CONFIG["api_url"], json=res, headers=headers, timeout=5) as resp:
-                            await resp.release()
-                    except: pass
-                queue.task_done()
-
-        workers = [asyncio.create_task(scan_worker()) for _ in range(250)]
-        
-        try:
-            for ip in IPNetwork(cidr):
-                for port in [19132, 19133, 25565]:
-                    await queue.put((str(ip), port))
+            async with session.get(task_url, headers=headers, timeout=10) as resp:
+                if resp.status != 200:
+                    await asyncio.sleep(5); continue
+                
+                data = await resp.json()
+                cidr = data.get("cidr")
+                if not cidr:
+                    await asyncio.sleep(10); continue
+                    
+                print(f"[*] Escaneando bloco: {cidr}")
+                for ip in IPNetwork(cidr):
+                    # Foca na porta padrão Bedrock para máxima velocidade
+                    await queue.put((str(ip), 19132))
+                
+                # Aguarda o bloco atual ser processado antes de pedir outro
+                await queue.join()
+                print(f"[✔] Bloco {cidr} finalizado.")
+                
         except Exception as e:
-            print(f"Erro no bloco {cidr}: {e}")
-
-        await queue.join()
-        for _ in range(len(workers)): await queue.put(None)
-        await asyncio.gather(*workers)
-        print(f"[✔] Bloco {cidr} concluído.")
+            print(f"[X] Erro no loop principal: {e}")
+            await asyncio.sleep(10)
 
 async def main_async():
-    r = redis.Redis(host=CONFIG["redis_host"], port=CONFIG["redis_port"], decode_responses=True)
     connector = aiohttp.TCPConnector(limit=None)
     async with aiohttp.ClientSession(connector=connector) as session:
-        await fetch_tasks(r, session)
+        # Validar conexão inicial
+        stats_url = CONFIG["api_url"].replace("/report", "/stats")
+        try:
+            async with session.get(stats_url, timeout=10) as resp:
+                if resp.status == 200:
+                    print(f"[✔] Conexão com Master estabelecida.")
+                else:
+                    print(f"[!] Master respondeu com erro {resp.status}")
+                    return
+        except Exception as e:
+            print(f"[X] Falha crítica ao conectar no Master em {stats_url}")
+            print(f"    Verifique se o Master está rodando e se o IP está correto.")
+            return
+
+        await fetch_tasks(session)
 
 def main():
     parser = argparse.ArgumentParser(description="Worker MC-SCAN v5.3")
-    parser.add_argument("--redis", help="IP do Redis", default=None)
     parser.add_argument("--master", help="IP do Master", default=None)
     parser.add_argument("--key", help="Chave API", default="MC-SCAN-2026")
     args = parser.parse_args()
@@ -111,29 +127,15 @@ def main():
 
     print(f"=== WORKER MC-SCAN v5.3 | ID: {CONFIG['worker_id']} ===")
     
-    CONFIG["redis_host"] = args.redis or input("IP Redis (localhost): ") or "localhost"
-    master_ip = args.master or input("IP Central (localhost): ") or "localhost"
-    
-    # Se estiver vindo do start.py, haverá uma terceira linha para a chave
-    if not args.redis and not args.master:
-        try:
-            # Tenta ler a chave se houver algo no buffer (como o echo do start.py faz)
-            import select, sys
-            if select.select([sys.stdin,],[],[],0.1)[0]:
-                CONFIG["api_key"] = input() or args.key
-            else:
-                CONFIG["api_key"] = args.key
-        except:
-            CONFIG["api_key"] = args.key
-    else:
-        CONFIG["api_key"] = args.key
-
+    master_ip = args.master or input("IP Central (Ex: 192.168.1.10): ") or "localhost"
+    CONFIG["api_key"] = args.key
     CONFIG["api_url"] = f"http://{master_ip}:5000/api/report"
     
     try:
         asyncio.run(main_async())
     except KeyboardInterrupt: pass
     except Exception as e: print(f"Erro: {e}")
+
 
 if __name__ == "__main__":
     main()
