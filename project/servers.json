@@ -1,0 +1,197 @@
+[
+    {
+        "ip": "177.54.146.12",
+        "port": 19132,
+        "motd": "A Minecraft Server",
+        "version": "26.10",
+        "players": "1",
+        "max_players": "500",
+        "time": "03:23:22"
+    },
+    {
+        "ip": "191.252.196.106",
+        "port": 19132,
+        "motd": "Servidor Super Legal",
+        "version": "26.3",
+        "players": "2",
+        "max_players": "500",
+        "time": "03:23:38"
+    },
+    {
+        "ip": "177.54.146.22",
+        "port": 19132,
+        "motd": "Dedicated Server",
+        "version": "1.26.14",
+        "players": "0",
+        "max_players": "35",
+        "time": "03:23:22"
+    },
+    {
+        "ip": "177.54.150.217",
+        "port": 19132,
+        "motd": "Dedicated Server",
+        "version": "1.26.20.28",
+        "players": "0",
+        "max_players": "15",
+        "time": "03:23:24"
+    },
+    {
+        "ip": "177.54.152.11",
+        "motd": "Geyser",
+        "version": "26.2",
+        "players": "0",
+        "max_players": "100",
+        "level_name": "Another Geyser server."
+    },
+    {
+        "ip": "177.54.152.53",
+        "motd": "Dedicated Server",
+        "version": "1.26.14",
+        "players": "0",
+        "max_players": "2147483647",
+        "level_name": "world"
+    },
+    {
+        "ip": "177.54.152.225",
+        "motd": "Dedicated Server",
+        "version": "1.26.14",
+        "players": "0",
+        "max_players": "25",
+        "level_name": "world_1765152062"
+    },
+    {
+        "ip": "191.252.192.36",
+        "port": 19132,
+        "motd": "TriboBR",
+        "version": "1.26.14",
+        "players": "0",
+        "max_players": "10",
+        "time": "03:23:35"
+    },
+    {
+        "ip": "191.252.200.92",
+        "port": 19132,
+        "motd": "Dedicated Server",
+        "version": "1.21.130",
+        "players": "0",
+        "max_players": "10",
+        "time": "03:23:40"
+    },
+    {
+        "ip": "191.252.203.39",
+        "port": 19132,
+        "motd": "Dedicated Server",
+        "version": "1.26.10",
+        "players": "0",
+        "max_players": "10",
+        "time": "03:23:41"
+    },
+    {
+        "ip": "177.54.146.12",
+        "port": 19133,
+        "motd": "A Minecraft Server",
+        "version": "26.10",
+        "players": "0",
+        "max_players": "500",
+        "time": "03:23:22"
+    },
+    {
+        "ip": "191.252.192.36",
+        "port": 19133,
+        "motd": "TriboBR",
+        "version": "1.26.14",
+        "players": "0",
+        "max_players": "10",
+        "time": "03:23:35"
+    },
+    {
+        "ip": "191.252.200.92",
+        "port": 19133,
+        "motd": "Dedicated Server",
+        "version": "1.21.130",
+        "players": "0",
+        "max_players": "10",
+        "time": "03:23:40"
+    },
+    {
+        "ip": "191.252.203.39",
+        "port": 19133,
+        "motd": "Dedicated Server",
+        "version": "1.26.10",
+        "players": "0",
+        "max_players": "10",
+        "time": "03:23:41"
+    },
+    {
+        "ip": "177.54.150.217",
+        "port": 25565,
+        "motd": "Dedicated Server",
+        "version": "1.26.20.28",
+        "players": "0",
+        "max_players": "15",
+        "time": "2026-04-19 19:38:09"
+    },
+    {
+        "ip": "177.54.152.4",
+        "port": 19132,
+        "motd": "",
+        "version": "1.26.14",
+        "players": "0",
+        "max_players": "9999",
+        "time": "2026-04-19 19:38:10"
+    },
+    {
+        "ip": "177.54.152.4",
+        "port": 25565,
+        "motd": "",
+        "version": "1.26.14",
+        "players": "0",
+        "max_players": "9999",
+        "time": "2026-04-19 19:38:10"
+    },
+    {
+        "ip": "177.155.66.81",
+        "port": 19132,
+        "motd": "PutzCraft! - O Melhor Servidor de todos!",
+        "version": "26.10",
+        "players": "0",
+        "max_players": "250",
+        "time": "2026-04-19 19:51:18"
+    },
+    {
+        "ip": "45.164.66.9",
+        "port": 19132,
+        "motd": "\u263b 0 1 2 3 4 5 6 7 8 9 a b c d e f l m n o k r \u00a7r\u00a76SERVER FOR THE DUDES \ud83d\udd25",
+        "version": "26.10",
+        "players": "0",
+        "max_players": "20",
+        "time": "2026-04-19 20:16:26"
+    },
+    {
+        "ip": "189.1.138.194",
+        "port": 19133,
+        "motd": "Pontes Hosting Server",
+        "version": "1.21.132",
+        "players": "0",
+        "max_players": "10",
+        "time": "2026-04-19 20:46:41"
+    },
+    {
+        "ip": "189.1.168.37",
+        "port": 19132,
+        "motd": "Dedicated Server",
+        "version": "1.26.14",
+        "players": "0",
+        "max_players": "8",
+        "time": "2026-04-19 20:47:34"
+    },
+    {
+        "ip": "189.1.168.73",
+        "port": 19132,
+        "motd": "Dedicated Server",
+        "version": "1.26.14",
+        "players": "0",
+        "max_players": "30",
+        "time": "2026-04-19 20:47:34"
+    }
+]

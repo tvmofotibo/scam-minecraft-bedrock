@@ -1,0 +1,9 @@
+{
+  "name": "mc-bedrock-bot",
+  "version": "1.0.0",
+  "description": "Bot de conscientização para Minecraft Bedrock",
+  "main": "bot.js",
+  "dependencies": {
+    "bedrock-protocol": "^3.55.0"
+  }
+}
