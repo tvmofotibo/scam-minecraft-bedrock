@@ -1,8 +1,7 @@
 from flask import Flask, render_template_string, jsonify, request
-import json, os, threading, redis, time
+import json, os, threading, redis, time, socket
 
 app = Flask(__name__)
-# Garantir que o caminho do arquivo seja relativo ao diretório do script
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
 SERVERS_FILE = os.path.join(PROJECT_ROOT, 'servers.json')
@@ -10,6 +9,7 @@ file_lock = threading.Lock()
 
 cached_servers = []
 known_hosts = set()
+active_workers = {} # ID: timestamp
 needs_save = False
 
 def load_data():
@@ -53,10 +53,28 @@ def get_stats():
     try:
         tasks = r.llen('mc_scan_tasks') if r else 0
     except: tasks = 0
+    
+    # Limpar workers inativos (30s sem sinal)
+    now = time.time()
+    dead = [w for w, t in active_workers.items() if now - t > 30]
+    for w in dead: del active_workers[w]
+
     return jsonify({
         "tasks_remaining": tasks, 
-        "total_found": len(cached_servers)
+        "total_found": len(cached_servers),
+        "workers_online": len(active_workers)
     })
+
+@app.route('/api/register', methods=['POST'])
+def register_worker():
+    if request.headers.get('X-API-Key') != API_KEY:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    data = request.json
+    worker_id = data.get('worker_id', 'Desconhecido')
+    active_workers[worker_id] = time.time()
+    print(f"[WORKER] Sinal recebido: {worker_id}")
+    return jsonify({"status": "ok"})
 
 @app.route('/api/report', methods=['POST'])
 def report_server():
@@ -74,6 +92,7 @@ def report_server():
             res['notified'] = res.get('notified', False)
             cached_servers.append(res)
             needs_save = True 
+        print(f"[API] Novo servidor encontrado: {host_key} ({res.get('motd', 'N/A')})")
         return jsonify({"status": "added"})
     return jsonify({"status": "exists"})
 
@@ -81,7 +100,6 @@ def report_server():
 def get_servers():
     return jsonify(cached_servers[-50:])
 
-# ... (TEMPLATE HTML MANTIDO) ...
 TEMPLATE = """
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -191,19 +209,25 @@ TEMPLATE = """
 
     <div class="container">
         <div class="row g-4">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="stat-card">
-                    <div class="stat-label">Servidores Encontrados</div>
+                    <div class="stat-label">Servidores</div>
                     <div class="stat-value" id="found">0</div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="stat-card">
-                    <div class="stat-label">Tarefas na Fila</div>
+                    <div class="stat-label">Fila Redis</div>
                     <div class="stat-value" id="tasks" style="color: #ff4d4d;">0</div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Workers Online</div>
+                    <div class="stat-value" id="workers" style="color: #ffaa00;">0</div>
+                </div>
+            </div>
+            <div class="col-md-3">
                 <div class="stat-card">
                     <div class="stat-label">Status Rede</div>
                     <div class="stat-value" style="color: #00ff88;">ATIVO</div>
@@ -225,6 +249,8 @@ TEMPLATE = """
                 const s = await (await fetch('/api/stats')).json();
                 document.getElementById('found').innerText = s.total_found;
                 document.getElementById('tasks').innerText = s.tasks_remaining.toLocaleString();
+                document.getElementById('workers').innerText = s.workers_online;
+                
                 const svs = await (await fetch('/api/servers')).json();
                 document.getElementById('body').innerHTML = svs.reverse().map(x => `
                     <tr>

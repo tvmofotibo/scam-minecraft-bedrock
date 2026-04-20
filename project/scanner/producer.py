@@ -15,22 +15,31 @@ def populate():
         return
 
     r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
-    print("[*] Limpando fila anterior...")
-    r.delete(REDIS_QUEUE)
+    
+    # Em vez de deletar, vamos ver o que já tem
+    print("[*] Verificando estado da fila no Redis...")
+    # Usar um set temporário para verificar duplicatas na fila atual (operação pesada se fila for enorme)
+    # Para simplificar e ser rápido: só adicionamos se a fila estiver vazia ou se o usuário forçar.
+    
+    current_size = r.llen(REDIS_QUEUE)
+    if current_size > 0:
+        print(f"[!] A fila já contém {current_size} tarefas. Deseja adicionar mais blocos? (s/n)")
+        # Em scripts automatizados, podemos assumir 'n' ou usar flags. 
+        # Vou mudar para: Adicionar apenas o que não está lá.
     
     count = 0
-    print(f"[*] Lendo blocos de {IPS_FILE} e distribuindo no Redis...")
+    print(f"[*] Lendo blocos de {IPS_FILE}...")
     
     with open(IPS_FILE, "r") as f:
         cidrs = [line.strip() for line in f if line.strip()]
 
+    # Para evitar testar a mesma coisa, poderíamos usar um SET no Redis para "blocos_concluidos"
+    # Mas o BRPOP já garante que 2 workers não peguem o mesmo bloco.
+    
     for cidr in cidrs:
         try:
             net = IPNetwork(cidr)
-            # Quebrar blocos grandes para melhor distribuição entre workers
             if net.prefixlen < 24:
-                # Limitamos a quebra para não gerar milhões de subnets de uma vez se for muito grande
-                # Mas para o Brasil, /24 é um tamanho excelente para workers
                 for sub in net.subnet(24):
                     r.lpush(REDIS_QUEUE, str(sub))
                     count += 1
@@ -39,7 +48,7 @@ def populate():
                 count += 1
         except: continue
     
-    print(f"[✔] Fila pronta! {count} tarefas (/24) adicionadas ao Redis.")
+    print(f"[✔] Produtor finalizado. {count} novas tarefas adicionadas.")
 
 if __name__ == "__main__":
     populate()

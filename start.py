@@ -24,10 +24,14 @@ def check_deps():
         subprocess.run(["redis-cli", "--version"], check=True, capture_output=True)
     except:
         print(f"{Y}[!] Redis-cli não encontrado. Tentando instalar...{W}")
+        # Detectar se o sudo está disponível
+        has_sudo = os.system("command -v sudo > /dev/null 2>&1") == 0
+        sudo_cmd = "sudo " if has_sudo else ""
+        
         if os.system("apt --version > /dev/null 2>&1") == 0:
-            os.system("sudo apt update && sudo apt install -y redis-server python3-pip")
+            os.system(f"{sudo_cmd}apt update && {sudo_cmd}apt install -y redis-server python3-pip")
         else:
-            print(f"{R}[X] Gerenciador de pacotes não suportado. Instale o Redis manualmente.{W}")
+            print(f"{R}[X] Gerenciador de pacotes 'apt' não encontrado. Instale o Redis manualmente.{W}")
 
     deps = ["redis", "aiohttp", "netaddr", "flask", "requests"]
     for dep in deps:
@@ -35,7 +39,8 @@ def check_deps():
             __import__(dep)
         except ImportError:
             print(f"[*] Instalando {dep}...")
-            os.system(f"pip3 install {dep} --break-system-packages > /dev/null 2>&1")
+            # Usa --user se não tiver permissão de root/sudo
+            os.system(f"pip3 install {dep} --break-system-packages || pip3 install {dep} --user")
 
 def start_redis():
     if os.system("redis-cli ping > /dev/null 2>&1") != 0:

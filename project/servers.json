@@ -193,5 +193,25 @@
         "players": "0",
         "max_players": "30",
         "time": "2026-04-19 20:47:34"
+    },
+    {
+        "ip": "24.152.39.47",
+        "port": 19132,
+        "motd": "\u00a7r\u00a73\u00a7lM\u00a7r\u00a73\u00a7lA\u00a7r\u00a7s\u00a7lS\u00a7r\u00a7s\u00a7lI\u00a7r\u00a7b\u00a7lV\u00a7r\u00a7b\u00a7lO\u00a7r\u00a79\u00a7l \u00a7r\u00a79\u00a7lS\u00a7r\u00a79\u00a7lM\u00a7r\u00a79\u00a7lP\u00a7r",
+        "version": "26.10",
+        "players": "61",
+        "max_players": "5000",
+        "time": "12:57:45",
+        "notified": false
+    },
+    {
+        "ip": "45.5.147.20",
+        "port": 19132,
+        "motd": "Dedicated Server",
+        "version": "1.26.1",
+        "players": "0",
+        "max_players": "10",
+        "time": "13:21:27",
+        "notified": false
     }
 ]

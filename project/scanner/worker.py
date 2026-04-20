@@ -1,8 +1,8 @@
-import asyncio, socket, struct, time, json, os, redis, aiohttp, argparse
+import asyncio, socket, struct, time, json, os, redis, aiohttp, argparse, random
 from netaddr import IPNetwork
 
 RAKNET_MAGIC = b'\0\xff\xff\0\xfe\xfe\xfe\xfe\xfd\xfd\xfd\xfd\x124Vx'
-CONFIG = {"redis_host": "", "redis_port": 6379, "api_url": "", "api_key": ""}
+CONFIG = {"redis_host": "", "redis_port": 6379, "api_url": "", "api_key": "", "worker_id": ""}
 
 async def check_server(ip, port):
     packet = b'\x01' + struct.pack('>q', int(time.time() * 1000)) + RAKNET_MAGIC + struct.pack('>q', 0)
@@ -11,9 +11,11 @@ async def check_server(ip, port):
     loop = asyncio.get_running_loop()
     try:
         await loop.sock_sendto(sock, packet, (ip, port))
-        data = await asyncio.wait_for(loop.sock_recv(sock, 1024), timeout=1.0)
+        # Reduzido para 0.8s para aumentar a velocidade, servidores BR respondem rápido
+        data = await asyncio.wait_for(loop.sock_recv(sock, 1024), timeout=0.8)
         if data.startswith(b'\x1c'):
             stats = data[35:].decode('utf-8', errors='ignore').split(';')
+            if len(stats) < 6: return None # Pacote inválido
             return {
                 "ip": str(ip), "port": int(port),
                 "motd": str(stats[1]) if len(stats) > 1 else "N/A",
@@ -22,16 +24,35 @@ async def check_server(ip, port):
                 "max_players": str(stats[5]) if len(stats) > 5 else "0",
                 "time": time.strftime("%H:%M:%S")
             }
-    except: return None
-    finally: sock.close()
+    except (asyncio.TimeoutError, ConnectionRefusedError):
+        return None
+    except Exception:
+        return None
+    finally:
+        try: sock.close()
+        except: pass
 
 async def fetch_tasks(r, session):
     headers = {"X-API-Key": CONFIG["api_key"]}
-    print(f"[*] Worker pronto. Escaneando...")
+    print(f"[*] Worker {CONFIG['worker_id']} pronto. Escaneando...")
     
+    # Sistema de Check-in (Heartbeat)
+    async def heartbeat():
+        url = CONFIG["api_url"].replace("/report", "/register")
+        while True:
+            try:
+                async with session.post(url, json={"worker_id": CONFIG["worker_id"]}, headers=headers, timeout=5) as resp:
+                    await resp.release()
+            except: pass
+            await asyncio.sleep(20)
+
+    asyncio.create_task(heartbeat())
+    
+    loop = asyncio.get_running_loop()
     while True:
+        # Executa brpop em thread para não travar o loop
         try:
-            task = r.brpop("mc_scan_tasks", timeout=5)
+            task = await loop.run_in_executor(None, r.brpop, "mc_scan_tasks", 5)
         except:
             await asyncio.sleep(5)
             continue
@@ -80,7 +101,11 @@ def main():
     parser.add_argument("--key", help="Chave API", default="MC-SCAN-2026")
     args = parser.parse_args()
 
-    print("=== WORKER MC-SCAN v5.3 (High Performance) ===")
+    # Gerar ID único para este worker
+    h = socket.gethostname()
+    CONFIG["worker_id"] = f"{h}-{random.randint(100, 999)}"
+
+    print(f"=== WORKER MC-SCAN v5.3 | ID: {CONFIG['worker_id']} ===")
     
     CONFIG["redis_host"] = args.redis or input("IP Redis (localhost): ") or "localhost"
     master_ip = args.master or input("IP Central (localhost): ") or "localhost"
