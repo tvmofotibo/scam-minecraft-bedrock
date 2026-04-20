@@ -1,4 +1,4 @@
-import asyncio, socket, struct, time, json, os, redis, aiohttp
+import asyncio, socket, struct, time, json, os, redis, aiohttp, argparse
 from netaddr import IPNetwork
 
 RAKNET_MAGIC = b'\0\xff\xff\0\xfe\xfe\xfe\xfe\xfd\xfd\xfd\xfd\x124Vx'
@@ -30,13 +30,17 @@ async def fetch_tasks(r, session):
     print(f"[*] Worker pronto. Escaneando...")
     
     while True:
-        task = r.brpop("mc_scan_tasks", timeout=5)
+        try:
+            task = r.brpop("mc_scan_tasks", timeout=5)
+        except:
+            await asyncio.sleep(5)
+            continue
+
         if not task: continue
         
         cidr = task[1]
         queue = asyncio.Queue(maxsize=1000)
         
-        # Workers internos para o bloco atual
         async def scan_worker():
             while True:
                 item = await queue.get()
@@ -51,9 +55,12 @@ async def fetch_tasks(r, session):
 
         workers = [asyncio.create_task(scan_worker()) for _ in range(250)]
         
-        for ip in IPNetwork(cidr):
-            for port in [19132, 19133, 25565]:
-                await queue.put((str(ip), port))
+        try:
+            for ip in IPNetwork(cidr):
+                for port in [19132, 19133, 25565]:
+                    await queue.put((str(ip), port))
+        except Exception as e:
+            print(f"Erro no bloco {cidr}: {e}")
 
         await queue.join()
         for _ in range(len(workers)): await queue.put(None)
@@ -67,11 +74,18 @@ async def main_async():
         await fetch_tasks(r, session)
 
 def main():
+    parser = argparse.ArgumentParser(description="Worker MC-SCAN v5.3")
+    parser.add_argument("--redis", help="IP do Redis", default=None)
+    parser.add_argument("--master", help="IP do Master", default=None)
+    parser.add_argument("--key", help="Chave API", default="MC-SCAN-2026")
+    args = parser.parse_args()
+
     print("=== WORKER MC-SCAN v5.3 (High Performance) ===")
-    CONFIG["redis_host"] = input("IP Redis: ") or "localhost"
-    master_ip = input("IP Central: ") or "localhost"
+    
+    CONFIG["redis_host"] = args.redis or input("IP Redis (localhost): ") or "localhost"
+    master_ip = args.master or input("IP Central (localhost): ") or "localhost"
     CONFIG["api_url"] = f"http://{master_ip}:5000/api/report"
-    CONFIG["api_key"] = input("Chave API: ") or "MC-SCAN-2026"
+    CONFIG["api_key"] = args.key or "MC-SCAN-2026"
     
     try:
         asyncio.run(main_async())

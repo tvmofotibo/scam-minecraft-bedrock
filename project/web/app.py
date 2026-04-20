@@ -2,8 +2,10 @@ from flask import Flask, render_template_string, jsonify, request
 import json, os, threading, redis, time
 
 app = Flask(__name__)
+# Garantir que o caminho do arquivo seja relativo ao diretório do script
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SERVERS_FILE = os.path.join(BASE_DIR, '../servers.json')
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+SERVERS_FILE = os.path.join(PROJECT_ROOT, 'servers.json')
 file_lock = threading.Lock()
 
 cached_servers = []
@@ -38,12 +40,18 @@ load_data()
 threading.Thread(target=background_saver, daemon=True).start()
 
 API_KEY = "MC-SCAN-2026"
-r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+
+def get_redis_conn():
+    try:
+        return redis.Redis(host='localhost', port=6379, decode_responses=True, socket_timeout=5)
+    except:
+        return None
 
 @app.route('/api/stats')
 def get_stats():
+    r = get_redis_conn()
     try:
-        tasks = r.llen('mc_scan_tasks')
+        tasks = r.llen('mc_scan_tasks') if r else 0
     except: tasks = 0
     return jsonify({
         "tasks_remaining": tasks, 
@@ -65,7 +73,7 @@ def report_server():
             known_hosts.add(host_key)
             res['notified'] = res.get('notified', False)
             cached_servers.append(res)
-            needs_save = True # Marca para o background saver
+            needs_save = True 
         return jsonify({"status": "added"})
     return jsonify({"status": "exists"})
 
@@ -73,7 +81,7 @@ def report_server():
 def get_servers():
     return jsonify(cached_servers[-50:])
 
-# ... (TEMPLATE HTML PERMANECE O MESMO DA VERSÃO ANTERIOR) ...
+# ... (TEMPLATE HTML MANTIDO) ...
 TEMPLATE = """
 <!DOCTYPE html>
 <html lang="pt-br">

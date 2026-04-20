@@ -18,19 +18,34 @@ def get_ip():
 
 def check_deps():
     print(f"{C}[*] Verificando dependências...{W}")
+    
+    # Verificar Redis
     try:
         subprocess.run(["redis-cli", "--version"], check=True, capture_output=True)
     except:
-        print(f"{Y}[!] Instalando Redis Server...{W}")
-        os.system("sudo apt update && sudo apt install -y redis-server python3-pip")
-        os.system("sudo systemctl enable redis-server && sudo systemctl start redis-server")
+        print(f"{Y}[!] Redis-cli não encontrado. Tentando instalar...{W}")
+        if os.system("apt --version > /dev/null 2>&1") == 0:
+            os.system("sudo apt update && sudo apt install -y redis-server python3-pip")
+        else:
+            print(f"{R}[X] Gerenciador de pacotes não suportado. Instale o Redis manualmente.{W}")
 
     deps = ["redis", "aiohttp", "netaddr", "flask", "requests"]
     for dep in deps:
         try:
             __import__(dep)
         except ImportError:
-            os.system(f"pip3 install {dep} --break-system-packages")
+            print(f"[*] Instalando {dep}...")
+            os.system(f"pip3 install {dep} --break-system-packages > /dev/null 2>&1")
+
+def start_redis():
+    if os.system("redis-cli ping > /dev/null 2>&1") != 0:
+        print(f"{Y}[!] Redis não está rodando. Iniciando manualmente...{W}")
+        os.system("redis-server --daemonize yes > /dev/null 2>&1")
+        time.sleep(2)
+        if os.system("redis-cli ping > /dev/null 2>&1") != 0:
+            print(f"{R}[X] Falha ao iniciar o Redis.{W}")
+            return False
+    return True
 
 def start_master():
     my_ip = get_ip()
@@ -38,10 +53,10 @@ def start_master():
     print(f"{G}=== CENTRAL MASTER v5.3 ==={W}")
     print(f"IP: {my_ip} | API: 5000 | Redis: 6379")
     
-    # Iniciar Redis
-    os.system("sudo systemctl start redis-server")
+    if not start_redis(): return
     
     # Iniciar Master API
+    print("[*] Iniciando API Master...")
     subprocess.Popen([sys.executable, "project/web/app.py"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
     # Atualizar IPs e Popular Redis
@@ -55,8 +70,8 @@ def start_master():
     
     # Iniciar Worker Local
     print("[*] Iniciando scanner local...")
-    cmd = f"echo 'localhost\nlocalhost\nMC-SCAN-2026' | {sys.executable} project/scanner/worker.py"
-    os.system(cmd)
+    cmd = [sys.executable, "project/scanner/worker.py", "--redis", "localhost", "--master", "localhost"]
+    subprocess.run(cmd)
 
 def start_worker():
     clear()
