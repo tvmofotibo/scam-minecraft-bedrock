@@ -39,11 +39,15 @@ async def fetch_tasks(r, session):
     # Sistema de Check-in (Heartbeat)
     async def heartbeat():
         url = CONFIG["api_url"].replace("/report", "/register")
+        print(f"[*] Heartbeat iniciado para: {url}")
         while True:
             try:
-                async with session.post(url, json={"worker_id": CONFIG["worker_id"]}, headers=headers, timeout=5) as resp:
+                async with session.post(url, json={"worker_id": CONFIG["worker_id"]}, headers=headers, timeout=10) as resp:
+                    if resp.status != 200:
+                        print(f"[!] Erro no Heartbeat: Status {resp.status}")
                     await resp.release()
-            except: pass
+            except Exception as e:
+                print(f"[!] Erro de conexão no Heartbeat: {e}")
             await asyncio.sleep(20)
 
     asyncio.create_task(heartbeat())
@@ -109,8 +113,22 @@ def main():
     
     CONFIG["redis_host"] = args.redis or input("IP Redis (localhost): ") or "localhost"
     master_ip = args.master or input("IP Central (localhost): ") or "localhost"
+    
+    # Se estiver vindo do start.py, haverá uma terceira linha para a chave
+    if not args.redis and not args.master:
+        try:
+            # Tenta ler a chave se houver algo no buffer (como o echo do start.py faz)
+            import select, sys
+            if select.select([sys.stdin,],[],[],0.1)[0]:
+                CONFIG["api_key"] = input() or args.key
+            else:
+                CONFIG["api_key"] = args.key
+        except:
+            CONFIG["api_key"] = args.key
+    else:
+        CONFIG["api_key"] = args.key
+
     CONFIG["api_url"] = f"http://{master_ip}:5000/api/report"
-    CONFIG["api_key"] = args.key or "MC-SCAN-2026"
     
     try:
         asyncio.run(main_async())

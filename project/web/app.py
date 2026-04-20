@@ -72,8 +72,9 @@ def register_worker():
     
     data = request.json
     worker_id = data.get('worker_id', 'Desconhecido')
+    ip = request.remote_addr
     active_workers[worker_id] = time.time()
-    print(f"[WORKER] Sinal recebido: {worker_id}")
+    print(f"[WORKER] Sinal recebido: {worker_id} (IP: {ip})")
     return jsonify({"status": "ok"})
 
 @app.route('/api/report', methods=['POST'])
